@@ -1,19 +1,80 @@
+import random
+
 import gym
 import numpy as np
 import matplotlib.pyplot as plt
+from collections import defaultdict
+
+
+def QFASEMITable():
+    Vstar = 0
+    potentialRewards = [qfa.getQvalueEstimate(newState, a) for a in qfa.actions]
+    Vstar = max(potentialRewards)
+    estimateOfVstar = qfa.getQvalueEstimate(state, action)
+    for SApair, oldEstOfVStar in qfa.extractor(state, action):
+        qfa.weights[SApair] = qfa.weights[SApair] - (
+                    alpha * (estimateOfVstar - (reward + gamma * Vstar)) * oldEstOfVStar)
 
 
 if __name__ == "__main__":
 
 
-    class QFA():
+
+    class QFAT():
 
         def __init__(self,numberOfParameters):
             self.numberOfParameters = numberOfParameters
             self.theata = [0 for x in range(numberOfParameters)]
             self.actions = [0,1]
             self.table = [0,0]
+            self.weights = defaultdict(float)
+            self.extractor = self.forierFeatureExtractor
             #self.table = [[0 for x in range(len(self.actions))] for i in range(numberOfParameters)]
+
+
+        def forierFeatureExtractor(self,state,action,numberOfStateParams = 7):
+            #state = tuple(np.cos(np.pi*i*state) for i in range(1,numberOfStateParams+1))
+            features = []
+
+            state[0] = state[0]
+            #IDK how tf you do this if you cant scale inf but whatever
+            state[1] = state[1]
+            state[2] = state[2]
+            state[3] = state[3]
+
+            for i in range(numberOfStateParams):
+                for j in range(len(state)):
+                    SAPair = (i,j,tuple(round(s,1) for s in state), action)
+                    valueEstimate = np.cos(np.pi*i*state[j])
+                    features.append((SAPair,valueEstimate))
+            return features
+
+
+        def identityFeatureExtractor(self,state,action):
+            features = []
+            state = tuple(round(s,1) for s in state)
+            features.append(((0,state,action),1))
+            features.append(((1,state,action),state[0]))
+            features.append(((2,state,action),state[2]))
+            features.append(((3,state,action),state[1]))
+            features.append(((4,state,action),state[3]))
+            return features
+
+        def getQvalueEstimate(self,state,action):
+            Qvalue = 0
+            for SApair, valueEstimate in self.extractor(state,action):
+                Qvalue = Qvalue + self.weights[SApair] * valueEstimate
+            return Qvalue
+
+        def predictValuesForState(self,state):
+            return state@self.weights
+
+        def epGreedPolicy(self,state, epsilon=.1):
+            if np.random.rand() < epsilon:
+                return random.randint(0, 1)
+            else:
+                Qvals = [self.getQvalueEstimate(state,a) for a in self.actions]
+                return np.argmax(Qvals)
 
         def getBasis(self,state,action,max=False):
             numFeat = 4
@@ -75,13 +136,15 @@ if __name__ == "__main__":
         # 3       Pole Angular Velocity     -Inf                    Inf
 
 
-    alpha = .1
-    gamma = .9
-    qfa = QFA(5)
 
-    numberOfEpisodes = 400
-    lenOfEpisodes = 2000
+    numberOfEpisodes = 1000
+    lenOfEpisodes = 200
     rewards = []
+
+
+    alpha = .03#1/np.sqrt(numberOfEpisodes)
+    gamma = .9
+    qfa = QFAT(4)
 
     for e in range(numberOfEpisodes):
 
@@ -89,26 +152,26 @@ if __name__ == "__main__":
         episodeRewards = []
 
         for i in range(lenOfEpisodes):
-            env.render()
+            #env.render()
 
             # should randomly take 1 of the 4 actions equal to the 25% probability
             if e == 0:
                 action = env.action_space.sample()  # your agent here (this takes random actions)
             else:
-                action = np.argmax(qfa.table)
+                action = qfa.epGreedPolicy(state)
+                #action = qfa.epGreedPolicy(state,epsilon=1-e/numberOfEpisodes)
+                #action = np.argmax(qfa.table)
 
             newState, reward, done, info = env.step(action)
 
+            if done and e != lenOfEpisodes - 1:
+                reward = -reward  # punishment for losing
+
             #WTF
-            d = reward + gamma*qfa.getBasis(newState,action,max=True) \
-                - np.matmul(np.transpose(qfa.getBasis(state,action)),qfa.theata)
+            #assuming that phi is actually the states? an ID mapping basically
 
-            qfa.theata = qfa.theata - alpha*d*np.asarray(qfa.getBasis(state,action))
+            QFASEMITable()
 
-            qfa.table[action] = np.matmul(qfa.theata,np.transpose(qfa.getBasis(state,action)))
-
-
-            print(state)
             state = newState
             episodeRewards.append(reward)
 
@@ -123,4 +186,8 @@ if __name__ == "__main__":
     env.close()
 
     plt.plot(rewards)
+    plt.xlabel("Episode #")
+    plt.ylabel("Reward")
+    plt.title("Sum of rewards Across episodes "
+              "\n gamma = " + str(gamma) + "alpha " + str(alpha))
     plt.show()
