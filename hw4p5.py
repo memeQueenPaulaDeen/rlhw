@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from collections import defaultdict
 
+from itertools import product
 
 def QFASEMITable():
     Vstar = 0
@@ -19,6 +20,72 @@ def QFASEMITable():
 if __name__ == "__main__":
 
 
+
+    class QFA():
+
+        def __init__(self,featureExtractorOrder=6,coupleFeatures=False):
+            self.actions = [0, 1]
+            self.numberOfStateFeatures = 4
+            self.featureExtractorOrder = featureExtractorOrder
+            self.coupleFeatures = coupleFeatures
+
+            if coupleFeatures:
+                t1 = np.zeros(featureExtractorOrder**self.numberOfStateFeatures,np.longdouble)
+                t2 = np.zeros(featureExtractorOrder**self.numberOfStateFeatures,np.longdouble)
+                # t1 = np.append(t1,1)
+                # t2 = np.append(t2,1)
+
+            else:
+                t1 = [0 for x in range (featureExtractorOrder*self.numberOfStateFeatures)]
+                t2 = [0 for x in range (featureExtractorOrder*self.numberOfStateFeatures)]
+            #add bias terms
+            # t1.append(1)
+            # t2.append(1)
+
+            self.theata = np.asarray([t1,t2],np.longdouble)
+            print()
+
+        def forierFeatureExtractor(self,state):
+            features = []
+            state[0] = np.clip(state[0],-4.8,4.8)#/(4.8)
+            # IDK how tf you do this if you cant scale inf but whatever
+            state[1] = np.clip(state[1],-15,15)#/15
+            state[2] = np.clip(state[2],-0.418,0.418)#/0.418
+            state[3] = np.clip(state[3],-15,15)#/15
+
+            # state[0] = (np.clip(state[0], -4.8, 4.8) + 4.8) / (2 * 4.8)
+            # state[1] = (np.clip(state[1], -10, 10) + 10) / (2 * 10)
+            # state[2] = (np.clip(state[2], -0.418, 0.418) + 0.418) / (0.418 * 2)
+            # state[3] = (np.clip(state[3], -10, 10) + 10) / (2 * 10)
+
+            if not self.coupleFeatures:
+                for i in range(self.featureExtractorOrder):
+                    for s in state:
+                        features.append(np.cos(np.pi*i*s))
+                        #features.append(np.sin(np.pi*i*s))
+                return np.asarray(features)
+            else:
+                basisOrderComboVect = [x for x in range(self.featureExtractorOrder)]
+                couplingMatrix = np.asarray(list(product(basisOrderComboVect, repeat=self.numberOfStateFeatures)))
+                result = np.cos(np.pi*couplingMatrix@np.asarray(state))+np.sin(np.pi*couplingMatrix@np.asarray(state))#np.append(np.cos(np.pi*couplingMatrix@np.asarray(state)),np.sin(np.pi*couplingMatrix@np.asarray(state)))
+                #result = np.append(result,1)
+                return result
+
+        def getQVal(self,state,action):
+            feats = self.forierFeatureExtractor(state)
+            return self.theata[action]@feats
+
+        def getMaxQ(self,state):
+            return max([self.getQVal(state,a) for a in self.actions])
+
+        def getAction(self,state):
+            return np.argmax(np.asarray([self.getQVal(state,a) for a in self.actions]))
+
+        def epGreedPolicy(self,state, epsilon=.1):
+            if np.random.rand() < epsilon:
+                return random.randint(0, 1)
+            else:
+                return self.getAction(state)
 
     class QFAT():
 
@@ -140,46 +207,67 @@ if __name__ == "__main__":
     numberOfEpisodes = 1000
     lenOfEpisodes = 200
     rewards = []
+    theatas = []
 
 
-    alpha = .03#1/np.sqrt(numberOfEpisodes)
+    alpha = .0015#1/np.sqrt(numberOfEpisodes)
     gamma = .9
-    qfa = QFAT(4)
+    #qfa = QFAT(4)
+    qfa = QFA(4,coupleFeatures=True)
 
     for e in range(numberOfEpisodes):
 
         state = env.reset()
         episodeRewards = []
 
+        print(e)
+
         for i in range(lenOfEpisodes):
+            # if numberOfEpisodes - e <=10:
+            #     env.render()
             #env.render()
 
             # should randomly take 1 of the 4 actions equal to the 25% probability
             if e == 0:
                 action = env.action_space.sample()  # your agent here (this takes random actions)
             else:
-                action = qfa.epGreedPolicy(state)
+                action = qfa.epGreedPolicy(state,epsilon=.02)
                 #action = qfa.epGreedPolicy(state,epsilon=1-e/numberOfEpisodes)
                 #action = np.argmax(qfa.table)
 
             newState, reward, done, info = env.step(action)
 
-            if done and e != lenOfEpisodes - 1:
-                reward = -reward  # punishment for losing
+            # if done and e != lenOfEpisodes - 1:
+            #     reward = -reward  # punishment for losing
 
             #WTF
             #assuming that phi is actually the states? an ID mapping basically
 
-            QFASEMITable()
+            #QFASEMITable()
+
+
+            d = reward + gamma*qfa.getMaxQ(newState) -qfa.getQVal(state,action)
+            theata = qfa.theata.tolist()
+
+            #alpha = np.asarray([1,1,1,1,.5,.5,.5,.5,.33,.33,.33,.33])*.05
+            phi = qfa.forierFeatureExtractor(state)
+            theata[action] = (theata[action] + (alpha*d*phi)).tolist()
+            qfa.theata = np.asarray(theata,np.longdouble) #- .02*np.asarray(theata,np.longdouble)#/np.linalg.norm(theata)
 
             state = newState
             episodeRewards.append(reward)
 
+
+            # if e %1000 == 0:
+            #     print(str(e)+ ": " + str(np.mean(rewards)))
+
             if done:
                 newState = env.reset()
+                print('E: ' +str(e) + ' I: ' + str(i))
                 break
 
         rewards.append(sum(episodeRewards))
+        theatas.append(np.linalg.norm(theata))
 
 
 
@@ -189,5 +277,20 @@ if __name__ == "__main__":
     plt.xlabel("Episode #")
     plt.ylabel("Reward")
     plt.title("Sum of rewards Across episodes "
+              "\n gamma = " + str(gamma) + "alpha " + str(alpha))
+    plt.show()
+
+    # #just plot last 200
+    # plt.plot(rewards[-200:])
+    # plt.xlabel("Episode #")
+    # plt.ylabel("Reward")
+    # plt.title("Sum of rewards Across LAST 200 episodes "
+    #           "\n gamma = " + str(gamma) + "alpha " + str(alpha))
+    # plt.show()
+
+    plt.plot(theatas)
+    plt.xlabel("Episode #")
+    plt.ylabel("norm of theata")
+    plt.title("norm of theata Across episodes "
               "\n gamma = " + str(gamma) + "alpha " + str(alpha))
     plt.show()
