@@ -1,3 +1,4 @@
+import copy
 import random
 
 import gym
@@ -47,16 +48,19 @@ if __name__ == "__main__":
 
         def forierFeatureExtractor(self,state):
             features = []
-            state[0] = np.clip(state[0],-4.8,4.8)#/(4.8)
-            # IDK how tf you do this if you cant scale inf but whatever
-            state[1] = np.clip(state[1],-15,15)#/15
-            state[2] = np.clip(state[2],-0.418,0.418)#/0.418
-            state[3] = np.clip(state[3],-15,15)#/15
+            # state[0] = np.clip(state[0],-4.8,4.8)#/(4.8)
+            # state[1] = np.clip(state[1],-15,15)#/15
+            # state[2] = np.clip(state[2],-0.418,0.418)#/0.418
+            # state[3] = np.clip(state[3],-15,15)#/15
 
-            # state[0] = (np.clip(state[0], -4.8, 4.8) + 4.8) / (2 * 4.8)
-            # state[1] = (np.clip(state[1], -10, 10) + 10) / (2 * 10)
-            # state[2] = (np.clip(state[2], -0.418, 0.418) + 0.418) / (0.418 * 2)
-            # state[3] = (np.clip(state[3], -10, 10) + 10) / (2 * 10)
+            state = copy.deepcopy(state)
+            #print("org: " + str(state))
+            state[0] = (np.clip(state[0], -4.8, 4.8) + 4.8) / (2 * 4.8)
+            state[1] = (np.clip(state[1], -5, 5) + 5) / (2 * 5)
+            state[2] = (np.clip(state[2], -0.418, 0.418) + 0.418) / (2*0.418)
+            state[3] = (np.clip(state[3], -5, 5) + 5) / (2 * 5)
+
+            #print("norm: "  + str(state))
 
             if not self.coupleFeatures:
                 for i in range(self.featureExtractorOrder):
@@ -236,6 +240,7 @@ if __name__ == "__main__":
                 #action = np.argmax(qfa.table)
 
             newState, reward, done, info = env.step(action)
+            #print('NS: ' + str(newState))
 
             # if done and e != lenOfEpisodes - 1:
             #     reward = -reward  # punishment for losing

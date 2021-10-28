@@ -75,4 +75,7 @@ if __name__ == "__main__":
     env.close()
 
     plt.plot(rewards)
+    plt.xlabel('Episode #')
+    plt.ylabel('Reward for episode')
+    plt.title("Q learning in a tabular setting ")
     plt.show()
