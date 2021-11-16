@@ -216,12 +216,12 @@ if __name__ == "__main__":
 
 
 
-    numberOfEpisodes = 200
+    numberOfEpisodes = 1000
     lenOfEpisodes = 200
     runsR = []
     theatasR = []
 
-    numRuns = 1
+    numRuns = 10
 
     for r in range(numRuns):
 
@@ -290,9 +290,9 @@ if __name__ == "__main__":
                 t = t + 1
                 theatas.append(np.linalg.norm(pg.theata))
 
-            if np.average(rewards[-100:]) > 195:
+            if np.average(rewards[-100:]) > 195 and e > 100:
                 print("Converged with avg: " + str(np.average(rewards[-100:])) + " in " + str(e) + " steps")
-
+                break
         runsR.append(rewards)
         theatasR.append(theatas)
 
