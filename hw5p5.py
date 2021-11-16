@@ -134,22 +134,22 @@ if __name__ == "__main__":
             actionDistro = self.theata @ self.forierFeatureExtractor(state)
             actionDistro = self.softmax(actionDistro)
 
-            self.theata[action] = self.theata[action] + self.alpha*g*(1-actionDistro[action])*self.forierFeatureExtractor(state)
+            #self.theata[action] = self.theata[action] + self.gamma**t*self.alpha*g*(1-actionDistro[action])*self.forierFeatureExtractor(state)
             # #action not taken
             #self.theata[action-1] = self.theata[action-1] + self.gamma**t*self.alpha*A*(actionDistro[action-1]*self.forierFeatureExtractor(state))
 
             #self.theata = self.theata + self.alpha*qv*np.expand_dims((1-actionDistro),1)@np.expand_dims(self.forierFeatureExtractor(state),0)
 
             # if action == 1:
-            #     self.theata[1] += self.alpha * self.gamma ** t * g * (1 - self.forierFeatureExtractor(state) * actionDistro[1])
+            #     self.theata[1] += self.alpha * self.gamma ** t * g * (1 - actionDistro[1]) *self.forierFeatureExtractor(state)
             #     self.theata[0] += self.alpha * self.gamma ** t * g * (- self.forierFeatureExtractor(state) * actionDistro[0])
             # else:
-            #     self.theata[0] += self.alpha * self.gamma ** t * g * (1 - self.forierFeatureExtractor(state) * actionDistro[0])
+            #     self.theata[0] += self.alpha * self.gamma ** t * g * (1 - actionDistro[0])*self.forierFeatureExtractor(state)
             #     self.theata[1] += self.alpha * self.gamma ** t * g * (-self.forierFeatureExtractor(state) * actionDistro[1])
 
 
-            # self.theata[action] = self.theata[action] + self.alpha*g*(1-actionDistro[action]*self.forierFeatureExtractor(state))
-            # self.theata[action-1] = self.theata[action-1] + self.alpha*g*(-actionDistro[action-1]*self.forierFeatureExtractor(state))
+            self.theata[action] = self.theata[action] + self.alpha * self.gamma**t * g *(1-actionDistro[action])*self.forierFeatureExtractor(state)
+            self.theata[action-1] = self.theata[action-1] + self.alpha * self.gamma**t * g *(-actionDistro[action-1]*self.forierFeatureExtractor(state))
 
             # self.theata[action] = self.theata[action]/np.linalg.norm(self.theata[action])
             # self.theata[action-1] = self.theata[action-1]/np.linalg.norm(self.theata[action-1])
@@ -228,7 +228,7 @@ if __name__ == "__main__":
         rewards = []
         theatas = []
 
-        pg =PG(env,featureExtractorOrder= 8, coupleFeatures=True,alpha=.002,gamma=1)
+        pg =PG(env,featureExtractorOrder= 5, coupleFeatures=True,alpha=.01,gamma=.9)
         #qfa = QFA(featureExtractorOrder=4, coupleFeatures=True,gamma=.99,alpha=.0015)
 
         for e in range(numberOfEpisodes):
