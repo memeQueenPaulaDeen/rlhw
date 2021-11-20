@@ -223,6 +223,8 @@ if __name__ == "__main__":
 
     numRuns = 10
 
+    patience = 0
+
     for r in range(numRuns):
 
         rewards = []
@@ -289,6 +291,15 @@ if __name__ == "__main__":
                 pg.update(state,action,t,A[t])
                 t = t + 1
                 theatas.append(np.linalg.norm(pg.theata))
+
+            # if (np.max(rewards[-100:]) - np.min(rewards[-100:])) < 30 and (e > patience + 100):
+            #     patience = patience + 100
+            #     pg.alpha = pg.alpha*np.random.choice([2,.5],p=[.5,.5])
+            #     print('lr reduced on plateau')
+
+            if e % 100 and max(rewards) < 100:
+                pg = PG(env, featureExtractorOrder=5, coupleFeatures=True, alpha=.01, gamma=.9)
+
 
             if np.average(rewards[-100:]) > 195 and e > 100:
                 print("Converged with avg: " + str(np.average(rewards[-100:])) + " in " + str(e) + " steps")
